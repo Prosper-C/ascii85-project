@@ -1,7 +1,7 @@
 import sys
 
-def ascii85_encode(data: bytes) -> str:
-    result = []
+def ascii85_encode(data: bytes) -> bytes:
+    result = bytearray()
     padding = (4 - len(data) % 4) % 4
     data += b'\0' * padding
 
@@ -10,35 +10,38 @@ def ascii85_encode(data: bytes) -> str:
         num = int.from_bytes(chunk, 'big')
 
         if num == 0:
-            result.append('z')
+            result.extend(b'z')
             continue
 
-        block = ''
-        for _ in range(5):
+        block = bytearray(5)
+        for j in range(4, -1, -1):
             num, rem = divmod(num, 85)
-            block = chr(rem + 33) + block
-        result.append(block)
+            block[j] = rem + 33
+        result.extend(block)
 
     if padding:
-        result[-1] = result[-1][:5 - padding]
+        result = result[:-padding]
 
-    return ''.join(result)
+    return bytes(result)
 
 def read_gradually():
-    for line in sys.stdin:
-        line = line.rstrip("\n")
-        encoded_line = ascii85_encode(line.encode())
-        sys.stdout.write(encoded_line + "\n")
-        sys.stdout.flush()
+    while True:
+        chunk = sys.stdin.buffer.read(4096)
+        if not chunk:
+            break
+        encoded = ascii85_encode(chunk)
+        sys.stdout.buffer.write(encoded)
+        sys.stdout.buffer.flush()
 
 def read_all_at_once():
-    data = sys.stdin.read()
-    if not data.strip():
+    data = sys.stdin.buffer.read()
+    if not data:
         sys.stderr.write("Error: No input received.\n")
         sys.exit(1)
 
-    encoded_data = ascii85_encode(data.encode())
-    sys.stdout.write(encoded_data + "\n")
+    encoded = ascii85_encode(data)
+    sys.stdout.buffer.write(encoded)
+    sys.stdout.buffer.flush()
 
 def main():
     if len(sys.argv) != 2:
@@ -57,3 +60,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    
